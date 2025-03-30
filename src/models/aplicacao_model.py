@@ -8,8 +8,9 @@ class AplicacaoModel(BaseModel):
                         aplicacao.idcategoria_aplicacao,
                         aplicacao.descricao
                     FROM aplicacao
-                    WHERE aplicacao.idcategoria_aplicacao IN (9, 10)
+                    WHERE aplicacao.idcategoria_aplicacao IN (9, 10, 14)
                     AND aplicacao.status = '1'
+                    AND aplicacao.buscarCotacao = '1'
                     ORDER BY idaplicacao ASC
                 """
         try:

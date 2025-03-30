@@ -24,7 +24,7 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-def buscaMercadoBRA(ticker):
+def buscaPrecoAtualMercadoBRA(ticker):
     TOKEN = config('TOKEN_BRAPI')
     url = f"https://brapi.dev/api/quote/{ticker}"
     params = {
@@ -38,19 +38,26 @@ def buscaMercadoBRA(ticker):
     try:
         response = requests.get(url, params=params)
         response.raise_for_status()  # Levanta um erro se o status code não for 2xx
-        return response.json()
+        response = response.json()
+        fii = response["results"][0]
+
+        preco_atual = fii.get('regularMarketPrice', None)
+        return preco_atual
     except requests.exceptions.RequestException as e:
         logger.error(f"Erro ao buscar mercado para {ticker}: {e}")
         return None
 
-def buscaCriptomoeda(ticker):
+def buscaPrecoAtualCriptomoeda(ticker):
     TOKEN = config('TOKEN_BRAPI')
-    url = f"https://brapi.dev/api/v2/crypto?coin={ticker}&currency=BRL&range=5d&interval=1d&token={TOKEN}"
-    
+    url = f"https://api.binance.com/api/v3/ticker/price?symbol={ticker}BRL"
+
     try:
-        res = requests.get(url)
-        res.raise_for_status()
-        return res.json()
+        response = requests.get(url)
+        response.raise_for_status()
+        fii = response.json()
+
+        preco_atual = fii.get('price', None)
+        return preco_atual
     except requests.exceptions.RequestException as e:
         logger.error(f"Erro ao buscar criptomoeda para {ticker}: {e}")
         return None
@@ -65,27 +72,21 @@ try:
         id_aplicacao = aplicacao['idaplicacao']
         ticker = aplicacao['descricao']
         
-        response = None
+        preco_atual = None
         if (tipo_aplicacao == 9 or tipo_aplicacao == 10):
-            response = buscaMercadoBRA(ticker)
+            preco_atual = buscaPrecoAtualMercadoBRA(ticker)
         elif (tipo_aplicacao == 14):
-            response = buscaCriptomoeda(ticker)
-             
-        if response is None or "results" not in response:
-            logger.warning(f"Sem dados de cotação para {ticker} (ID {id_aplicacao})")
-            continue
+            preco_atual = buscaPrecoAtualCriptomoeda(ticker)
 
         try:
-            fii = response["results"][0]
-            preco_atual = fii.get('regularMarketPrice', None)
             if preco_atual is None:
-                logger.warning(f"Preço atual não encontrado para {ticker}")
+                logger.warning(f"Preço atual não encontrado para {ticker} (ID {id_aplicacao})")
                 continue
             
             dados.append({
                 "sigla": ticker,
                 "idaplicacao": id_aplicacao,
-                "preco_cotado": float(preco_atual),
+                "preco_cotado": preco_atual,
                 "data_hora_cadastro": data_hora_atual.strftime("%Y-%m-%d %H:%M:%S")
             })
         except KeyError as e:
